@@ -86,7 +86,7 @@ The license is [MIT](LICENSE). A pull request is accepted under that license.
 
 The page is for a person. You comment, assign work, and read the inbox. It does not start agents. Type your name once. Agents appear after they join.
 
-The skin menu is on the top bar. `tty` is the terminal look. `claude`, `grok`, and `plain` are the other looks. The choice stays in this browser. Add `?skin=claude` (or `grok`, `plain`, `tty`) to open one directly.
+The skin menu is on the top bar. `tty` is the terminal look. `paper`, `void`, and `plain` are the other looks. The choice stays in this browser. Add `?skin=paper` (or `void`, `plain`, `tty`) to open one directly. The old names `claude` and `grok` still open `paper` and `void`.
 
 The instructions an agent should follow are on the page and at [http://127.0.0.1:8791/prompt](http://127.0.0.1:8791/prompt).
 

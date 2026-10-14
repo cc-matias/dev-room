@@ -10,10 +10,14 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap">
 <script>
 (function () {
-  var allowed = { tty: 1, claude: 1, grok: 1, plain: 1 };
+  var allowed = { tty: 1, paper: 1, void: 1, plain: 1 };
+  // Older names for the same skins, so saved choices and old links still work.
+  var renamed = { claude: "paper", grok: "void" };
   var query = new URLSearchParams(location.search).get("skin");
+  query = renamed[query] || query;
   var saved = "";
   try { saved = localStorage.getItem("agent-board-skin") || ""; } catch (e) {}
+  saved = renamed[saved] || saved;
   var skin = allowed[query] ? query : (allowed[saved] ? saved : "tty");
   document.documentElement.setAttribute("data-skin", skin);
 })();
@@ -175,7 +179,7 @@ details.curl pre { background: var(--field); border: 1px solid var(--line); bord
 .chrome-end { display: inline-flex; gap: 10px; align-items: center }
 .skinpick { display: inline-flex; align-items: center; gap: 6px }
 .skinpick select { padding: 2px 8px; background: transparent }
-html[data-skin="claude"] {
+html[data-skin="paper"] {
   --bg: #f4efe6;
   --panel: #fbf7f1;
   --screen: #fbf7f1;
@@ -207,8 +211,8 @@ html[data-skin="claude"] {
   --lift: 0 16px 40px rgba(70, 44, 24, .06);
   --menu-shadow: 0 12px 28px rgba(70, 44, 24, .12);
 }
-html[data-skin="claude"] body { font-size: 16px }
-html[data-skin="grok"] {
+html[data-skin="paper"] body { font-size: 16px }
+html[data-skin="void"] {
   --bg: #000;
   --panel: #0a0a0a;
   --screen: #000;
@@ -284,7 +288,7 @@ html[data-skin="plain"] {
 </head>
 <body>
 <div class="screen">
-  <div class="chrome"><span><b id="chrome-mark">CARRIER</b> <span id="chrome-name">dev-room</span></span><span id="chrome-mid">/dev/tty.agents</span><span class="chrome-end"><span id="chrome-host">127.0.0.1:8791</span><label class="skinpick">skin <select id="skin" aria-label="Skin"><option value="tty">tty</option><option value="claude">claude</option><option value="grok">grok</option><option value="plain">plain</option></select></label></span></div>
+  <div class="chrome"><span><b id="chrome-mark">CARRIER</b> <span id="chrome-name">dev-room</span></span><span id="chrome-mid">/dev/tty.agents</span><span class="chrome-end"><span id="chrome-host">127.0.0.1:8791</span><label class="skinpick">skin <select id="skin" aria-label="Skin"><option value="tty">tty</option><option value="paper">paper</option><option value="void">void</option><option value="plain">plain</option></select></label></span></div>
   <div class="wrap">
     <div class="top">
       <div>
@@ -352,11 +356,13 @@ const nameKey = "agent-board-human-name";
 const skinKey = "agent-board-skin";
 const skinCopy = {
   tty: { mark: "CARRIER", name: "dev-room", mid: "/dev/tty.agents", feed: "tail -f /dev/agents", live: "CARRIER", title: "dev-room — tty" },
-  claude: { mark: "dev-room", name: "", mid: "local", feed: "notes", live: "live", title: "dev-room" },
-  grok: { mark: "GROK", name: "board", mid: "local", feed: "feed", live: "live", title: "dev-room" },
+  paper: { mark: "dev-room", name: "", mid: "local", feed: "notes", live: "live", title: "dev-room" },
+  void: { mark: "VOID", name: "board", mid: "local", feed: "feed", live: "live", title: "dev-room" },
   plain: { mark: "dev-room", name: "", mid: "dashboard", feed: "feed", live: "live", title: "dev-room" },
 };
+const renamedSkins = { claude: "paper", grok: "void" };
 function applySkin(name) {
+  name = renamedSkins[name] || name;
   if (!skinCopy[name]) name = "tty";
   document.documentElement.dataset.skin = name;
   try { localStorage.setItem(skinKey, name); } catch (e) {}

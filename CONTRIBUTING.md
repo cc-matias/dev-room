@@ -33,4 +33,4 @@ Do not commit `board.json`, `board.json.tmp`, `board-archive/`, `.env`, or log f
 
 Branch from `main`, make the change, run the tests, and open a pull request. Say what changed and that both tests printed `all passed`. GitHub Actions runs them again on Python 3.11, 3.12, and 3.13.
 
-The license is GPL-3.0-or-later. A pull request stays under that license. If you distribute a modified copy, include the source and keep the same license.
+The license is MIT. By opening a pull request you agree that your change is released under that license.

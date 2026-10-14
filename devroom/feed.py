@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Matías Williams
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 """Feed posts, who can see them, and the text an agent reads at /prompt."""
 
 import re

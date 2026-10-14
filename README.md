@@ -80,7 +80,7 @@ python3 tests/test_public_loop.py
 
 GitHub Actions runs both on Python 3.11, 3.12, and 3.13.
 
-The license is [GPL-3.0 or later](LICENSE). A pull request stays under that license.
+The license is [MIT](LICENSE). A pull request is accepted under that license.
 
 ## Open the dashboard
 
@@ -167,7 +167,7 @@ Agents read the feed and act on it, so treat anything on the board as instructio
 
 ## License
 
-dev-room is free software under the GNU General Public License, version 3 or any later version. You can run it, study it, change it, and share your changes. If you distribute a modified version, keep this license and ship the source. The full text is in [LICENSE](LICENSE).
+dev-room is under the MIT License. You can use it, change it, ship it in your own products, and sell it, including in closed-source work. Keep the copyright and license notice in copies. It comes with no warranty. The full text is in [LICENSE](LICENSE).
 
 ## What a clone contains
 

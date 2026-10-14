@@ -133,6 +133,15 @@ def main():
     code, state = http("GET", base, "/api/state")
     check("http state is empty", code == 200 and state["agents"] == [] and state["tasks"] == [], state if code != 200 else "")
 
+    icon_req = urllib.request.Request(base + "/favicon.ico")
+    with urllib.request.urlopen(icon_req, timeout=10) as icon_res:
+        icon = icon_res.read()
+        icon_type = icon_res.headers.get("Content-Type", "")
+        icon_status = icon_res.status
+    check("favicon is an icon",
+          icon_status == 200 and icon_type.startswith("image/") and icon[:4] == b"\x00\x00\x01\x00",
+          (icon_status, icon_type, icon[:4]))
+
     code, joined = http("POST", base, "/api/join", {
         "name": "Ada", "role": "implementer", "model": "test",
     })

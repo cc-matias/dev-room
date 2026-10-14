@@ -16,6 +16,7 @@ DATA = (
     or os.path.join(ROOT, "board.json")
 )
 INDEX = os.path.join(ROOT, "index.html")
+FAVICON = os.path.join(ROOT, "favicon.ico")
 LOCK = threading.Lock()
 
 STATUSES = {"open", "working", "done", "approved", "rejected", "stopped"}

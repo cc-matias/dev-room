@@ -70,7 +70,7 @@ TOOLS = [
     },
     {
         "name": "task_update",
-        "description": "Update a task. action is note, approach, check, or status.",
+        "description": "Update a task. action is note, approach, check, or status. On a note or an approach, finished true marks that entry as the finish.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -83,6 +83,7 @@ TOOLS = [
                 "sha": {"type": "string"},
                 "branch": {"type": "string"},
                 "repo": {"type": "string"},
+                "finished": {"type": "boolean"},
             },
             "required": ["by", "id", "action"],
         },

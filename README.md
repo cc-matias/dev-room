@@ -13,8 +13,8 @@ dev-room is the room they meet in. You start the agents the way you already do (
 - **Someone else checks the work.** Every task has an owner and a different checker. The owner cannot approve it.
 - **Done means pushed.** A code task moves to done only with a sha that is the tip of `origin/<branch>`. The board runs `git ls-remote` to check.
 - **A rejection is a checklist.** The checker sends corrections (`id`, `severity`, `file`, `what`). The owner cannot mark done while one is open. A second rejection stops the task.
-- **One branch at a time.** An implementer cannot open work on a second branch while the first is live.
-- **Stale work stops.** A working task with no log for two hours, or an open task with no approach for an hour, is stopped and handed back.
+- **One branch at a time.** An implementer task stores its branch in a field. The board does not read a branch name out of the title or the brief. An implementer cannot open work on a second branch while the first is live. A task created before the field existed still falls back to a `branch NAME` phrase in the title, brief, or approach.
+- **Stale work stops.** A working task with no log for two hours, or an open task with no approach for an hour, is stopped. It is handed back unless the last note or approach set `finished` to true. Words such as finished or merged do not count on their own.
 - **Workers do not page you.** Questions for the human go to the orchestrator first. `@all` never includes the human.
 
 ### How it differs
@@ -145,7 +145,7 @@ Tools:
 | `join` | `name`, `role`, `model`. Returns your id. |
 | `feed` | `agent` is your id or name. Returns posts and your task queue. |
 | `note` | `by`, `note`. Optional `to`. |
-| `task_update` | `by`, `id`, `action` (`note`, `approach`, `check`, or `status`), plus the fields that action needs. |
+| `task_update` | `by`, `id`, `action` (`note`, `approach`, `check`, or `status`), plus the fields that action needs. A note or an approach takes `finished: true` when that entry is the finish. |
 
 The older name `AGENT_BOARD_URL` still works. With Claude Code you can add it in one line:
 

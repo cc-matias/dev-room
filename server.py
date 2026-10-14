@@ -197,10 +197,11 @@ def mark_seen(row: dict) -> None:
     row["last_seen"] = now()
 
 
-def log(task: dict, by: str, text: str, status: str | None, kind: str) -> None:
-    task["log"].append(
-        {"at": now(), "by": by, "kind": kind, "status": status, "text": text}
-    )
+def log(task: dict, by: str, text: str, status: str | None, kind: str, finished: bool = False) -> None:
+    entry = {"at": now(), "by": by, "kind": kind, "status": status, "text": text}
+    if finished:
+        entry["finished"] = True
+    task["log"].append(entry)
     task["updated_at"] = now()
 
 
@@ -227,6 +228,7 @@ def clean_branch(value: str) -> str:
 
 
 def inferred_branch(task: dict) -> str:
+    """Branch named in the text. Used only when the task has no branch field."""
     blob = "\n".join([
         task.get("title") or "",
         task.get("brief") or "",
@@ -240,7 +242,10 @@ def inferred_branch(task: dict) -> str:
 
 
 def task_branch(task: dict) -> str:
-    return clean_branch(task.get("branch") or "") or inferred_branch(task)
+    """The stored branch. A task from before the field existed still reads the text."""
+    if "branch" in task:
+        return clean_branch(task.get("branch") or "")
+    return inferred_branch(task)
 
 
 def clean_repo(value: str) -> tuple[str, str | None]:
@@ -532,7 +537,6 @@ def feed_visible(post: dict, who_id: str) -> bool:
 
 
 OPEN_IDLE_SECONDS = 60 * 60
-FINISH_RE = re.compile(r"(?<!\bnot )(?<!\bun)\b(finished|completed|approved|merged)\b", re.I)
 
 
 def checker_offline(data: dict, task: dict) -> bool:
@@ -558,11 +562,11 @@ def open_checklist(task: dict) -> bool:
     return any(not item.get("done") for item in task.get("checklist") or [])
 
 
-def last_work_note(task: dict) -> str:
+def last_work_entry(task: dict) -> dict | None:
     for entry in reversed(task.get("log") or []):
         if entry.get("kind") in {"note", "approach"} and (entry.get("text") or "").strip():
-            return entry["text"].strip()
-    return ""
+            return entry
+    return None
 
 
 def stall_stopped(task: dict) -> bool:
@@ -576,7 +580,7 @@ def stall_stopped(task: dict) -> bool:
 
 
 def handed_back(data: dict, who_id: str) -> set[int]:
-    """Stopped correction rounds, plus the newest idle stop whose last note is unfinished."""
+    """Stopped correction rounds, plus the newest idle stop that was not marked finished."""
     ids: set[int] = set()
     newest = None
     newest_at = None
@@ -587,8 +591,8 @@ def handed_back(data: dict, who_id: str) -> set[int]:
             ids.add(task["id"])
         if not stall_stopped(task):
             continue
-        note = last_work_note(task)
-        if note and FINISH_RE.search(note):
+        entry = last_work_entry(task)
+        if entry and entry.get("finished") is True:
             continue
         touched = last_activity(task)
         if newest is None or (touched and (newest_at is None or touched > newest_at)):
@@ -943,16 +947,16 @@ Logged out, absent until they join again: {removed}
 
    curl -s '{base}/api/feed?for=YOUR_ID'
 
-   Without since, the feed list is your newest 50 posts, and omitted says how many older ones were left out. Add &limit=N for more, up to 500. Add &since=ISO-8601 on later polls so the feed list is only new posts. Poll at least every four minutes. You go offline after six minutes without a read or a post. The tasks array on that same response is your live queue every time, even when the feed list is empty. A post with no "to" is public. A post with "to" is a direct message. The filtered feed returns public posts, messages to you, and messages you sent. A direct message is a pointer, not a private channel. A feed note is at most 600 characters. Post your introduction once. A second public note that starts the same way is refused. Do not post "Task #N is done" in the feed. The board already tells the checker. A working task with no log for 120 minutes is stopped. An open task with no approach for 60 minutes is stopped. A review of an older sha is stopped when a later sha on the same PR is done or approved. A stopped task with an open checklist comes back to its owner on the feed queue. So does that owner's newest idle stop when the last note is not a finish. The stop line goes to the owner and names the last note.
+   Without since, the feed list is your newest 50 posts, and omitted says how many older ones were left out. Add &limit=N for more, up to 500. Add &since=ISO-8601 on later polls so the feed list is only new posts. Poll at least every four minutes. You go offline after six minutes without a read or a post. The tasks array on that same response is your live queue every time, even when the feed list is empty. A post with no "to" is public. A post with "to" is a direct message. The filtered feed returns public posts, messages to you, and messages you sent. A direct message is a pointer, not a private channel. A feed note is at most 600 characters. Post your introduction once. A second public note that starts the same way is refused. Do not post "Task #N is done" in the feed. The board already tells the checker. A working task with no log for 120 minutes is stopped. An open task with no approach for 60 minutes is stopped. A review of an older sha is stopped when a later sha on the same PR is done or approved. A stopped task with an open checklist comes back to its owner on the feed queue. So does that owner's newest idle stop, unless its last note or approach set finished to true. Saying finished, completed, approved, or merged does not count. The stop line goes to the owner and names the last note.
 
-4. Work the tasks that name you. Do not wait for a direct message, and do not wait to be asked again. The snapshot below is only the moment you read this prompt, and it leaves out approved and stopped tasks. On every poll, read tasks from /api/feed?for=YOUR_ID. If duty is "do", the task is yours: status open or rejected means post an approach, then do the work. You post that approach even if your role is checker. Owning the task is what matters. Status working means continue, and do not post the same approach again. Status stopped on your queue means the checklist is still open, or the idle stop was not a finish. Post a new approach and continue. If duty is "check", the task is done and you review it now. When the assigned checker is offline, that duty is also on every other online agent's queue except the owner's, and any of them may approve or reject it. A human does not receive those tasks. The board also messages you when a task is assigned to you, sent back, or ready for review. That message is one line. It is a start, not a permission slip, and it does not repeat the brief. Silence is not a reason to stay idle.
+4. Work the tasks that name you. Do not wait for a direct message, and do not wait to be asked again. The snapshot below is only the moment you read this prompt, and it leaves out approved and stopped tasks. On every poll, read tasks from /api/feed?for=YOUR_ID. If duty is "do", the task is yours: status open or rejected means post an approach, then do the work. You post that approach even if your role is checker. Owning the task is what matters. Status working means continue, and do not post the same approach again. Status stopped on your queue means the checklist is still open, or the idle stop was not marked finished. Post a new approach and continue. If duty is "check", the task is done and you review it now. When the assigned checker is offline, that duty is also on every other online agent's queue except the owner's, and any of them may approve or reject it. A human does not receive those tasks. The board also messages you when a task is assigned to you, sent back, or ready for review. That message is one line. It is a start, not a permission slip, and it does not repeat the brief. Silence is not a reason to stay idle.
 
 {task_block}
 
 Roles, on top of the instructions you already have:
 - owner: the task names you, so you post the approach, even when your role is checker. Duty "do" overrides the checker paragraph below. Say how, in concrete files or commands, then do the work. A rejection comes back with a checklist on this same task. Answer it with a new approach and finish the open items. Do not wait for a new task per correction. A question or an alert goes to the orchestrator. Do not write @ and the human's name, and do not set "to" to the human.
 - checker: this is the review seat, the checker field. When duty is "check", do not write the approach and do not mark the task done. Approve it, or reject it with corrections. When you mark a review done, send the sha you reviewed. The done line and the task line include that sha. A rejection that is only a sentence is refused. A second rejection stops the task, and it still needs corrections. If you own the task, you are the owner for that task. A question or an alert goes to the orchestrator. Do not write @ and the human's name, and do not set "to" to the human. The board delivers a human-addressed note to the orchestrator instead.
-- orchestrator: open tasks, name an owner and a different checker. An implementer task needs one branch and the checkout path. The board refuses a new task when that implementer already has live work on a different branch. Same branch is allowed. Several corrections belong on one checklist, on the task you are rejecting. Do not open one task per correction. When a follow-up continues a stopped task, write task #ID in the title or brief. The board copies that task's open checklist. The board already messages the owner in one line (task id, duty, who they mark it done for). Do not paste the brief again. When someone announces they are free, assign them a task or answer on the feed. Read verdicts. Approve or reject done tasks yourself. Do not mark another agent's task done to finish it. You are the only agent who contacts the human. Ask for a merge, or for one decision, in a single note that names the human. Do not ask them to approve each task. @all does not include the human, so name them on that one note.
+- orchestrator: open tasks, name an owner and a different checker. An implementer task needs a branch field and the checkout path. The board does not read a branch name out of the title, the brief, or the approach. A task created before the branch field existed still uses that old reading. The board refuses a new task when that implementer already has live work on a different branch. Same branch is allowed. Several corrections belong on one checklist, on the task you are rejecting. Do not open one task per correction. When a follow-up continues a stopped task, write task #ID in the title or brief. The board copies that task's open checklist. The board already messages the owner in one line (task id, duty, who they mark it done for). Do not paste the brief again. When someone announces they are free, assign them a task or answer on the feed. Read verdicts. Approve or reject done tasks yourself. Do not mark another agent's task done to finish it. You are the only agent who contacts the human. Ask for a merge, or for one decision, in a single note that names the human. Do not ask them to approve each task. @all does not include the human, so name them on that one note.
 - human: the person at the dashboard. They merge. Done tasks stay with the checker. Their inbox shows only a note from the orchestrator.
 
    Open a task:
@@ -995,10 +999,10 @@ Roles, on top of the instructions you already have:
      -d '{{"by":"YOUR_ID","item":"L1"}}'
 
    status is one of: working, done, approved, rejected, stopped.
-   A note that does not change status:
+   A note that does not change status. Set finished to true when this note is the finish. Words such as finished, completed, approved, or merged do not count on their own. The same flag works on an approach.
    curl -s -X POST {base}/api/tasks/TASK_ID/note \\
      -H 'Content-Type: application/json' \\
-     -d '{{"by":"YOUR_ID","note":"..."}}'
+     -d '{{"by":"YOUR_ID","note":"...","finished":true}}'
 
    Public feed, a direct message when "to" is set, or a note that contains @Name. @Name is delivered to that agent's id. @all is delivered to every agent who is still joined, except you. Logged-out agents are not included. On your filtered feed, to or mentions is your id when someone is talking to you, including a note sent with @all.
    curl -s -X POST {base}/api/feed \\
@@ -1562,13 +1566,16 @@ class Handler(BaseHTTPRequestHandler):
         repo_path = None
         branch_name = None
         if task_needs_sha(data, task):
-            explicit = clean_branch(task.get("branch") or "")
+            if "branch" in task:
+                known = clean_branch(task.get("branch") or "")
+            else:
+                known = inferred_branch(task)
             sent = clean_branch(str(body.get("branch") or ""))
             if body.get("branch") and not sent:
                 return False, "branch must be a branch name, without spaces", None, None, None, set()
-            if explicit and sent and explicit != sent:
-                return False, f"this task is on branch {explicit}", None, None, None, set()
-            branch_name = sent or explicit or inferred_branch(task)
+            if known and sent and known != sent:
+                return False, f"this task is on branch {known}", None, None, None, set()
+            branch_name = sent or known
             stored_repo = (task.get("repo") or "").strip()
             sent_repo = str(body.get("repo") or "").strip()
             if stored_repo and sent_repo:
@@ -1630,7 +1637,7 @@ class Handler(BaseHTTPRequestHandler):
         if action == "note":
             if not text:
                 return self._send(400, {"error": "note is required"})
-            log(task, author["id"], text, None, "note")
+            log(task, author["id"], text, None, "note", finished=flag(body, "finished", False))
         elif action == "approach":
             if not (is_owner or human or orchestrator):
                 return self._send(403, {"error": "only the owner posts how this is being solved"})
@@ -1640,7 +1647,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(409, {"error": "this task is closed"})
             if task["status"] in {"open", "rejected"}:
                 task["status"] = "working"
-            log(task, author["id"], text, task["status"], "approach")
+            log(task, author["id"], text, task["status"], "approach", finished=flag(body, "finished", False))
         elif action == "check":
             if not (is_owner or human or orchestrator):
                 return self._send(403, {"error": "only the owner can mark a checklist item"})

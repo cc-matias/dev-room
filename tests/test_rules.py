@@ -201,6 +201,77 @@ def main():
         returned = server.handed_back(server.load(), "cy")
     check("the idle task goes back to its owner", idle in returned, returned)
 
+    # Branch is a field. Text is read only when the task has no branch key.
+    old = {
+        "id": 910, "title": "Ship branch feature/old", "brief": "See branch feature/old",
+        "owner": "ivy", "checker": "cy", "status": "working",
+        "created_at": server.now(), "updated_at": server.now(), "log": [],
+        "repo": checkout, "code": True, "checklist": [],
+    }
+    check("an old task reads its branch from the text", server.task_branch(old) == "feature/old", server.task_branch(old))
+    ready, err, _, _, branch_name, _ = server.Handler._done_ready(None, server.load(), old, {"sha": "abc1234"})
+    check("done on an old task uses that branch", ready and branch_name == "feature/old", (ready, err, branch_name))
+    stored = dict(old, branch="", title="Ship branch feature/sneak", brief="")
+    ready, err, _, _, branch_name, _ = server.Handler._done_ready(None, server.load(), stored, {"sha": "abc1234"})
+    check("a stored branch is not filled in from the text", ready and branch_name == "", (ready, err, branch_name))
+    with server.LOCK:
+        data = server.load()
+        data["tasks"].append(old)
+        data["next_task_id"] = max(data["next_task_id"], 911)
+        server.save(data)
+    code, feed, _ = http("GET", base, "/api/feed?for=ivy")
+    queued = next((row for row in feed.get("tasks") or [] if row["id"] == 910), {})
+    check("the queue shows the branch read from an old task", queued.get("branch") == "feature/old", queued.get("branch"))
+    code, body, _ = http("POST", base, "/api/tasks", {
+        "by": "ora", "title": "Write branch feature/sneak", "owner": "ivy", "checker": "cy",
+        "branch": "feature/new", "repo": checkout,
+    })
+    check("an old task still blocks a different branch", code == 409 and "feature/old" in body.get("error", ""), body)
+    code, body, _ = http("POST", base, "/api/tasks", {
+        "by": "ora", "title": "Write branch feature/sneak", "owner": "ivy", "checker": "cy",
+        "repo": checkout,
+    })
+    check("a new task does not take a branch from its title", code == 400 and "needs a branch" in body.get("error", ""), body)
+
+    # Saying "finished" does not end an idle stop. The finished flag does.
+    code, task, _ = http("POST", base, "/api/tasks", {
+        "by": "ora", "title": "Said finished", "owner": "cy", "checker": "ivy", "code": False,
+    })
+    said = task["id"]
+    http("POST", base, f"/api/tasks/{said}/approach", {"by": "cy", "text": "Starting."})
+    code, body, _ = http("POST", base, f"/api/tasks/{said}/note", {"by": "cy", "note": "This work is finished and merged."})
+    check("a note without the flag stores no finished field", code == 200 and "finished" not in body["log"][-1], body["log"][-1])
+    code, task, _ = http("POST", base, "/api/tasks", {
+        "by": "ora", "title": "Marked finished", "owner": "cy", "checker": "ivy", "code": False,
+    })
+    marked = task["id"]
+    code, body, _ = http("POST", base, f"/api/tasks/{marked}/approach", {
+        "by": "cy", "text": "Still writing the last line.", "finished": True,
+    })
+    check("a finish flag is stored on the approach", code == 200 and body["log"][-1].get("finished") is True, body["log"][-1])
+    with server.LOCK:
+        data = server.load()
+        old_at = (datetime.now(UTC) - timedelta(minutes=121)).isoformat(timespec="seconds")
+        for item in data["tasks"]:
+            if item["id"] in {said, marked}:
+                for entry in item["log"]:
+                    entry["at"] = old_at
+                item["created_at"] = item["updated_at"] = old_at
+        server.release_stale(data)
+        # The earlier idle stop shares this second. Push it back so the prose finish is the newest.
+        idle_row = next(item for item in data["tasks"] if item["id"] == idle)
+        older = (datetime.now(UTC) - timedelta(minutes=180)).isoformat(timespec="seconds")
+        for entry in idle_row["log"]:
+            entry["at"] = older
+        idle_row["created_at"] = idle_row["updated_at"] = older
+        returned = server.handed_back(data, "cy")
+    check("saying finished still hands the task back", said in returned, returned)
+    check("finished true keeps the idle stop off the queue", marked not in returned, returned)
+    prompt = server.join_prompt("http://127.0.0.1:9", server.load())
+    check("the prompt asks for the branch field and the finish flag",
+          "does not read a branch name" in prompt and "finished to true" in prompt
+          and "last note is not a finish" not in prompt, "")
+
     # A feed read without since is capped, so a first read stays small.
     with server.LOCK:
         data = server.load()
@@ -262,6 +333,8 @@ def main():
                                "params": {"protocolVersion": "1999-01-01"}})
     check("mcp falls back to its newest version",
           hello["result"]["protocolVersion"] == mcp_server.SUPPORTED_VERSIONS[0], hello)
+    update = next(tool for tool in mcp_server.TOOLS if tool["name"] == "task_update")
+    check("mcp task_update accepts finished", "finished" in update["inputSchema"]["properties"], update["inputSchema"])
 
     httpd.shutdown()
     shutil.rmtree(WORK, ignore_errors=True)

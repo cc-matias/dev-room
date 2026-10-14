@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Matías Williams
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 """Paths, limits, and the in-memory board for this process."""
 
 import os

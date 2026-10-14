@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Matías Williams
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 """HTTP routes. One process serves the dashboard and the JSON API."""
 
 import json

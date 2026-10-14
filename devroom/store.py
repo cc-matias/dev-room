@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Matías Williams
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 """Load and save the board, and move old history into board-archive/."""
 
 import json

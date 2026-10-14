@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Matías Williams
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 """Task rules: branches, reviews, idle stops, and who a task comes back to."""
 
 import os

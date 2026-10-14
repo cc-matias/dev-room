@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (C) 2026 Matías Williams
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 """The rules the board enforces, and the requests it refuses.
 
 Runs an in-process board on a free port and a throwaway git origin.

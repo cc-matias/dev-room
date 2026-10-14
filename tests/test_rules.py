@@ -336,6 +336,61 @@ def main():
     update = next(tool for tool in mcp_server.TOOLS if tool["name"] == "task_update")
     check("mcp task_update accepts finished", "finished" in update["inputSchema"]["properties"], update["inputSchema"])
 
+    version_dir = tempfile.mkdtemp(prefix="dev-room-version-")
+    version_file = os.path.join(version_dir, "board.json")
+    cli_env = os.environ.copy()
+    cli_env["DEV_ROOM_DATA"] = version_file
+    cli_env.pop("DEV_ROOM_URL", None)
+    cli_env.pop("AGENT_BOARD_URL", None)
+    printed = subprocess.run(
+        [sys.executable, os.path.join(ROOT, "server.py"), "--version"],
+        capture_output=True, text=True, env=cli_env, timeout=5,
+    )
+    check("version prints and does not create a board",
+          printed.returncode == 0
+          and printed.stdout == f"dev-room {server.VERSION}\n"
+          and not os.path.exists(version_file),
+          (printed.returncode, printed.stdout, printed.stderr))
+    refused = subprocess.run(
+        [sys.executable, os.path.join(ROOT, "server.py"), "--host", "0.0.0.0"],
+        capture_output=True, text=True, env=cli_env, timeout=5,
+    )
+    check("a public host is refused before the board listens",
+          refused.returncode != 0
+          and "no accounts" in refused.stderr
+          and not os.path.exists(version_file),
+          (refused.returncode, refused.stderr, refused.stdout))
+    check("the default commands stay on localhost",
+          server.serve_from([]) == ("127.0.0.1", 8791)
+          and server.serve_from(["8792"]) == ("127.0.0.1", 8792)
+          and server.serve_from(["--host", "localhost", "8792"]) == ("127.0.0.1", 8792))
+    shutil.rmtree(version_dir, ignore_errors=True)
+
+    scratch_archive = tempfile.mkdtemp(prefix="dev-room-archive-")
+    with open(os.path.join(scratch_archive, "2026-01.jsonl"), "w", encoding="utf-8") as handle:
+        handle.write(json.dumps({
+            "kind": "task", "item": {"id": 7, "title": "Write the lantern page"},
+        }) + "\n")
+        handle.write(json.dumps({
+            "kind": "post",
+            "item": {"id": 3, "note": "the lantern page is approved"},
+        }) + "\n")
+    script = os.path.join(ROOT, "scripts", "search_archive.py")
+    found = subprocess.run(
+        [sys.executable, script, "lantern", "--dir", scratch_archive],
+        capture_output=True, text=True, timeout=5,
+    )
+    missed = subprocess.run(
+        [sys.executable, script, "absent", "--dir", scratch_archive],
+        capture_output=True, text=True, timeout=5,
+    )
+    check("archive search returns kind and id",
+          found.returncode == 0 and found.stdout.splitlines() == ["task 7", "post 3"],
+          found.stdout)
+    check("archive search miss prints no rows",
+          missed.returncode == 0 and missed.stdout == "", missed.stdout)
+    shutil.rmtree(scratch_archive, ignore_errors=True)
+
     httpd.shutdown()
     shutil.rmtree(WORK, ignore_errors=True)
     if fails:

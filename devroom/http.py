@@ -176,6 +176,13 @@ class Handler(BaseHTTPRequestHandler):
         if refused:
             return self._send(403, {"error": refused})
         path, _, query = self.path.partition("?")
+        if path == "/favicon.ico":
+            try:
+                with open(FAVICON, "rb") as handle:
+                    raw = handle.read()
+            except OSError:
+                return self._send(404, {"error": "no icon"})
+            return self._send(200, raw, "image/x-icon")
         if path in ("/", "/index.html", "/prompt"):
             host = self.headers.get("Host") or "localhost:8791"
             base = "http://" + host

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (C) 2026 Matías Williams
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 """MCP stdio server for the local agent board.
 
 The tools call the same operations as the HTTP routes. When DEV_ROOM_URL is
